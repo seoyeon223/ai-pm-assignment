@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ko">
+<head><meta charset="utf-8"><title>모의 유튜브 (테스트용)</title>
+<style>body{font-family:sans-serif;margin:0}#player{height:1400px;background:#111;color:#fff}
+#submit-button button[disabled]{opacity:.4}</style></head>
+<body>
+<!-- 유튜브 DOM 구조만 흉내 낸 테스트 페이지. 쿼리: loggedout=1 / disabled=1 / hold=1 -->
+<ytd-masthead id="masthead"></ytd-masthead>
+<div id="player"><video></video>영상 영역</div>
+<ytd-comments id="comments"></ytd-comments>
+<script>
+const q = new URLSearchParams(location.search);
+const masthead = document.getElementById('masthead');
+masthead.innerHTML = q.get('loggedout')
+  ? '<a href="https://accounts.google.com/ServiceLogin">로그인</a>'
+  : '<button id="avatar-btn">나</button>';
+
+const comments = document.getElementById('comments');
+let loaded = false;
+window.addEventListener('scroll', () => {
+  if (loaded || window.scrollY < 300) return;
+  loaded = true;
+  setTimeout(() => {
+    if (q.get('disabled')) {
+      comments.innerHTML = '<ytd-message-renderer>댓글이 사용 중지되었습니다.</ytd-message-renderer>';
+      return;
+    }
+    comments.innerHTML = `
+      <div id="simple-box"><ytd-comment-simplebox-renderer>
+        <div id="placeholder-area">댓글 추가...</div></ytd-comment-simplebox-renderer></div>
+      <div id="contents">
+        <ytd-comment-thread-renderer><div id="content-text">기존 댓글입니다</div></ytd-comment-thread-renderer>
+      </div>`;
+    document.getElementById('placeholder-area').addEventListener('click', openBox);
+  }, 400);
+});
+
+function openBox() {
+  if (q.get('loggedout')) { masthead.innerHTML += '<a href="ServiceLogin">로그인하세요</a>'; return; }
+  const box = document.getElementById('simple-box');
+  box.innerHTML = `<ytd-commentbox>
+      <div id="contenteditable-root" contenteditable="true" style="min-height:24px;border-bottom:1px solid #999"></div>
+      <ytd-button-renderer id="submit-button"><button disabled>댓글</button></ytd-button-renderer>
+    </ytd-commentbox>`;
+  const ed = document.getElementById('contenteditable-root');
+  const btn = box.querySelector('#submit-button button');
+  ed.addEventListener('input', () => { btn.disabled = ed.innerText.trim() === ''; });
+  btn.addEventListener('click', () => {
+    const text = ed.innerText;
+    box.innerHTML = '<div id="placeholder-area">댓글 추가...</div>';
+    if (q.get('hold')) return; // 검토 대기: 목록에 안 뜸
+    setTimeout(() => {
+      const t = document.createElement('ytd-comment-thread-renderer');
+      t.innerHTML = '<div id="published-time-text"><a href="/watch?v=' + q.get('v') + '&lc=UgxTEST123">방금 전</a></div>' +
+                    '<div id="content-text"></div>';
+      t.querySelector('#content-text').innerText = text;
+      document.getElementById('contents').prepend(t);
+    }, 600);
+  });
+}
+</script>
+</body></html>

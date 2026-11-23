@@ -1,0 +1,53 @@
+# 크롬 프로필 (profiles_dir 아래에 같은 이름 폴더로 생성)
+profiles_dir: ./profiles
+profiles: [유튜브1, 유튜브2, 유튜브3]
+
+# 비워두면 OS 기본 설치 경로에서 찾음
+chrome_path: ""
+
+comment:
+  min_chars: 40
+  max_chars: 120
+  brand: 운명원
+  require_brand: true
+  # 광고 표시 문구 (예: "(협찬)"). 넣으면 모든 댓글에 필수, 글자 수에 포함
+  disclosure: ""
+  # 이전 댓글과 3-gram 유사도가 이 값 이상이면 차단
+  max_similarity: 0.6
+
+limits:
+  daily_max_comments: 10
+  timezone: Asia/Seoul
+  stale_minutes: 15      # 이 시간 넘게 진행 중이면 실패로 정리
+
+# 글자 사이 입력 지연(ms)
+typing: { min_delay_ms: 60, max_delay_ms: 140 }
+
+browser:
+  timeout_seconds: 30        # 단계별 타임아웃
+  verify_timeout_seconds: 20 # 게시 후 내 댓글 확인 대기
+  keep_open_seconds: 5       # 완료 후 창 닫기 전 대기
+
+youtube:
+  search_query: 연애
+  max_results: 20
+  region: KR
+  language: ko
+  cache_minutes: 30          # 검색 결과 캐시 (할당량 절약)
+  top_comments: 15           # 분석에 넣을 인기 댓글 수
+  rising:                    # '뜨기 직전' 조건
+    min_views: 1000
+    max_views: 5000
+    min_views_per_hour: 150
+    lookback_hours: 48
+
+ai:
+  provider: gemini           # gemini | anthropic  (키는 .env: GEMINI_API_KEY / ANTHROPIC_API_KEY)
+  analysis_model: gemini-3.5-flash
+  writer_model: gemini-3.5-flash
+  use_video_input: true      # 자막 없으면 영상 직접 분석 (Gemini)
+  max_attempts: 3            # 초안 재생성 최대 횟수
+  temperature: 0.9
+
+db_path: ./data/agent.db
+screenshots_dir: ./data/screenshots

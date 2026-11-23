@@ -1,0 +1,543 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>유튜브 댓글 에이전트</title>
+<style>
+  :root{
+    --bg:#f5f4f1; --panel:#fff; --ink:#1d1b19; --sub:#6b665f; --line:#e6e2db; --soft:#faf9f7;
+    --accent:#b4235a; --accent-ink:#fff; --accent-soft:#fbeef3;
+    --ok:#1f7a4d; --ok-soft:#e8f5ee; --bad:#b42318; --bad-soft:#fdecea; --warn:#b45309; --warn-soft:#fdf3e4;
+    --radius:12px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif}
+  button{font:inherit;cursor:pointer}
+  button:disabled{cursor:not-allowed}
+  a{color:var(--accent)}
+  header{display:flex;align-items:center;gap:16px;padding:14px 24px;background:var(--panel);border-bottom:1px solid var(--line)}
+  header h1{font-size:17px;margin:0;font-weight:700}
+  .chips{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap}
+  .chip{padding:4px 10px;border-radius:999px;background:var(--soft);border:1px solid var(--line);font-size:12px;color:var(--sub);white-space:nowrap}
+  .chip b{color:var(--ink)}
+  .chip.bad{background:var(--bad-soft);color:var(--bad);border-color:#f5c2bc}
+  nav{display:flex;gap:4px;padding:0 24px;background:var(--panel);border-bottom:1px solid var(--line)}
+  nav button{border:0;background:none;padding:10px 14px;color:var(--sub);border-bottom:2px solid transparent;font-weight:600}
+  nav button.on{color:var(--ink);border-color:var(--accent)}
+  .guide{margin:16px 24px 0;padding:10px 14px;border-radius:var(--radius);background:var(--accent-soft);color:#7a1640;font-weight:600;display:flex;gap:8px;align-items:center}
+  .setup{margin:16px 24px 0;padding:14px 16px;border-radius:var(--radius);background:var(--warn-soft);border:1px solid #f3d9b1;color:#6b3b07}
+  .setup h3{margin:0 0 6px;font-size:14px}
+  .setup li{margin:2px 0}
+  code{background:rgba(0,0,0,.06);padding:1px 5px;border-radius:4px;font-size:12px}
+  main{display:grid;grid-template-columns:minmax(320px,380px) minmax(380px,1fr) minmax(300px,340px);gap:16px;padding:16px 24px 24px;align-items:start}
+  .col{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);display:flex;flex-direction:column;min-height:calc(100vh - 190px);max-height:calc(100vh - 150px)}
+  .col.dim{opacity:.55}
+  .col-h{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line)}
+  .num{width:26px;height:26px;border-radius:50%;background:var(--ink);color:#fff;display:grid;place-items:center;font-weight:700;font-size:13px;flex:none}
+  .col.dim .num{background:#bbb}
+  .col-h h2{font-size:15px;margin:0}
+  .col-h small{color:var(--sub);margin-left:auto;font-size:12px}
+  .col-b{padding:14px 16px;overflow:auto;flex:1}
+  .btn{border:1px solid var(--line);background:var(--panel);padding:8px 12px;border-radius:8px;font-weight:600}
+  .btn:hover:not(:disabled){background:var(--soft)}
+  .btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+  .btn.primary:hover:not(:disabled){filter:brightness(.95);background:var(--accent)}
+  .btn.big{width:100%;padding:13px;font-size:15px;border-radius:10px}
+  .btn:disabled{opacity:.45}
+  .row{display:flex;gap:8px}
+  .row>*{flex:1}
+  input[type=text],select,textarea{width:100%;font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
+  textarea{resize:vertical;min-height:110px;line-height:1.6}
+  label.l{display:block;font-size:12px;color:var(--sub);margin:12px 0 4px;font-weight:600}
+  .list{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+  .card{display:flex;gap:10px;padding:8px;border:1px solid var(--line);border-radius:10px;cursor:pointer;background:#fff;text-align:left;width:100%}
+  .card:hover{border-color:#cfc8bd}
+  .card.sel{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+  .card img{width:120px;height:68px;object-fit:cover;border-radius:6px;background:#eee;flex:none}
+  .card .t{font-weight:600;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:13px}
+  .card .m{color:var(--sub);font-size:12px;margin-top:2px}
+  .badges{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
+  .b{font-size:11px;padding:1px 7px;border-radius:999px;font-weight:600}
+  .b.done{background:#ecebe8;color:#57534e}
+  .b.rise{background:var(--warn-soft);color:var(--warn)}
+  .b.draft{background:var(--ok-soft);color:var(--ok)}
+  .empty{color:var(--sub);text-align:center;padding:40px 10px}
+  .err{background:var(--bad-soft);color:var(--bad);padding:10px 12px;border-radius:8px;margin-top:10px}
+  .concern{font-size:17px;font-weight:700;line-height:1.45;padding:12px 14px;border-left:4px solid var(--accent);background:var(--accent-soft);border-radius:6px}
+  .src{display:inline-block;margin-top:8px;font-size:12px;color:var(--sub)}
+  .ev{list-style:none;padding:0;margin:6px 0 0}
+  .ev li{display:flex;gap:8px;padding:6px 0;border-bottom:1px dashed var(--line);font-size:13px}
+  .ev .tm{font-variant-numeric:tabular-nums;color:var(--accent);font-weight:700;min-width:44px;text-decoration:none}
+  mark{background:#ffe8a3;padding:0 2px;border-radius:3px}
+  .vhead{display:flex;gap:10px;align-items:center;margin-bottom:12px}
+  .vhead img{width:96px;height:54px;border-radius:6px;object-fit:cover}
+  .vhead .t{font-weight:700;font-size:14px}
+  .counter{display:flex;justify-content:space-between;font-size:12px;color:var(--sub);margin-top:4px}
+  .counter .over{color:var(--bad);font-weight:700}
+  .checks{list-style:none;padding:0;margin:10px 0 0;display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;font-size:12.5px}
+  .checks li.ok{color:var(--ok)} .checks li.no{color:var(--bad);font-weight:600}
+  .checkmsg{font-size:12px;color:var(--bad);margin-top:6px}
+  details{margin-top:10px;font-size:12.5px;color:var(--sub)}
+  details li{margin:4px 0}
+  .spinner{display:inline-block;width:14px;height:14px;border:2px solid #ddd;border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;vertical-align:-2px;margin-right:6px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .steps{list-style:none;padding:0;margin:14px 0 0}
+  .steps li{display:flex;align-items:center;gap:8px;padding:6px 0;color:#a8a29e;font-size:13px}
+  .steps .dot{width:18px;height:18px;border-radius:50%;border:2px solid #d6d3d1;flex:none;display:grid;place-items:center;font-size:11px}
+  .steps li.done{color:var(--ink)} .steps li.done .dot{background:var(--ok);border-color:var(--ok);color:#fff}
+  .steps li.now{color:var(--ink);font-weight:700} .steps li.now .dot{border-color:var(--accent);border-top-color:transparent;animation:spin .8s linear infinite}
+  .steps li.fail{color:var(--bad);font-weight:700} .steps li.fail .dot{background:var(--bad);border-color:var(--bad);color:#fff}
+  .steps li.done .dot::after{content:"✓";font-weight:700}
+  .steps li.fail .dot::after{content:"!";font-weight:700}
+  .links a{display:block;font-size:12.5px;margin-bottom:2px}
+  .logsum{margin-bottom:12px;color:var(--sub);font-size:13px}
+  .logsum b{color:var(--ink)}
+  .bar{height:4px;background:var(--line);border-radius:2px;overflow:hidden;margin-left:26px;margin-top:-2px}
+  .bar i{display:block;height:100%;background:var(--accent);width:0;transition:width .2s}
+  .result{margin-top:14px;padding:12px;border-radius:10px;font-size:13px}
+  .result.ok{background:var(--ok-soft);color:var(--ok)}
+  .result.no{background:var(--bad-soft);color:var(--bad)}
+  .result.blk{background:var(--warn-soft);color:var(--warn)}
+  .result img{width:100%;border-radius:6px;margin-top:8px;border:1px solid var(--line)}
+  .why{font-size:12px;color:var(--sub);margin-top:8px}
+  .today{margin-top:16px;padding:10px 12px;background:var(--soft);border-radius:8px;font-size:13px;display:flex;justify-content:space-between}
+  .meter{height:6px;background:var(--line);border-radius:3px;margin-top:6px;overflow:hidden}
+  .meter i{display:block;height:100%;background:var(--ink)}
+  .linkbtn{border:0;background:none;color:var(--accent);padding:0;font-size:12px;font-weight:600}
+  #logView{padding:16px 24px}
+  table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;font-size:13px}
+  th,td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+  th{background:var(--soft);font-size:12px;color:var(--sub)}
+  td.c{max-width:420px}
+  .st{font-weight:700;white-space:nowrap}
+  .st.success{color:var(--ok)} .st.failed{color:var(--bad)} .st.blocked{color:var(--warn)} .st.in_progress{color:var(--sub)}
+  .hide{display:none!important}
+</style>
+</head>
+<body>
+<header>
+  <h1>유튜브 댓글 에이전트</h1>
+  <div class="chips" id="chips"></div>
+</header>
+<nav>
+  <button class="on" data-tab="dash">대시보드</button>
+  <button data-tab="log">기록</button>
+</nav>
+
+<div id="dash">
+  <div class="setup hide" id="setup"></div>
+  <div class="guide" id="guide">→ <span id="guideText"></span></div>
+  <main>
+    <!-- ① -->
+    <section class="col" id="col1">
+      <div class="col-h"><span class="num">1</span><h2>영상 불러오기</h2><small id="listInfo"></small></div>
+      <div class="col-b">
+        <div class="row">
+          <button class="btn primary" id="btnLatest">영상 불러오기</button>
+          <button class="btn" id="btnRising" title="조회수 1,000~5,000 · 시간당 150회 이상">뜨기 직전 찾기</button>
+        </div>
+        <label class="l" for="q">검색어</label>
+        <input type="text" id="q">
+        <label class="l" for="link">또는 유튜브 링크 직접 입력</label>
+        <div class="row" style="flex:none">
+          <input type="text" id="link" placeholder="https://www.youtube.com/watch?v=..." style="flex:3">
+          <button class="btn" id="btnLink" style="flex:1">추가</button>
+        </div>
+        <div id="listErr"></div>
+        <div class="list" id="list"><div class="empty">[영상 불러오기]를 누르면<br>최신 영상이 여기에 뜹니다.</div></div>
+      </div>
+    </section>
+
+    <!-- ② -->
+    <section class="col dim" id="col2">
+      <div class="col-h"><span class="num">2</span><h2>영상 선택 · 초안</h2><small id="modelInfo"></small></div>
+      <div class="col-b" id="draftBox">
+        <div class="empty">왼쪽 목록에서 영상을 고르면<br>AI가 영상 속 고민과 댓글 초안을 만듭니다.</div>
+      </div>
+    </section>
+
+    <!-- ③ -->
+    <section class="col dim" id="col3">
+      <div class="col-h"><span class="num">3</span><h2>댓글 달기</h2></div>
+      <div class="col-b">
+        <label class="l" for="profile" style="margin-top:0">어느 계정으로 달까요?</label>
+        <select id="profile"></select>
+        <div style="text-align:right;margin-top:4px"><button class="linkbtn" id="btnLogin">로그인 상태 확인</button></div>
+        <button class="btn primary big" id="btnPost" disabled style="margin-top:10px">댓글 달기</button>
+        <div class="why" id="why"></div>
+        <ul class="steps" id="steps"></ul>
+        <div id="result"></div>
+        <div class="today" id="today"></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="logView" class="hide">
+  <div class="logsum" id="logSum"></div>
+  <table>
+    <thead><tr><th>시간</th><th>결과</th><th>프로필</th><th>영상</th><th>댓글</th><th>링크 · 이유</th></tr></thead>
+    <tbody id="logBody"></tbody>
+  </table>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const num = n => Number(n||0).toLocaleString("ko-KR");
+
+const STEP_ORDER = [
+  ["opening","프로필 여는 중"],["loading","영상 여는 중"],["login_check","로그인 확인"],
+  ["finding_box","댓글 창 찾기"],["typing","한 글자씩 입력 중"],["submitting","게시 중"],
+  ["verifying","내 댓글 확인"],["done","게시 완료"]];
+const CHECKS = [
+  ["LENGTH","길이"],["LINK","링크 없음"],["HASHTAG","해시태그 없음"],["NO_BRAND","브랜드 언급"],
+  ["NO_DISCLOSURE","광고 표시"],["FAKE_REVIEW","지어낸 후기 없음"],["TOO_SIMILAR","이전 댓글과 다름"],["NO_EVIDENCE","영상 근거 언급"]];
+
+const S = { status:null, videos:[], sel:null, draft:null, checks:[], posting:false, job:null, lastOutcome:null, drafting:false };
+
+async function api(path, opts={}) {
+  const r = await fetch(path, {headers:{"Content-Type":"application/json"}, ...opts,
+                               body: opts.body ? JSON.stringify(opts.body) : undefined});
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    const d = data.detail && typeof data.detail === "object" ? data.detail : data;
+    throw new Error(d.message || data.detail || "요청 실패");
+  }
+  return data;
+}
+
+function ago(iso) {
+  const h = (Date.now() - new Date(iso)) / 36e5;
+  if (h < 1) return `${Math.max(1, Math.round(h*60))}분 전`;
+  if (h < 24) return `${Math.round(h)}시간 전`;
+  const d = Math.round(h/24);
+  return d < 30 ? `${d}일 전` : new Date(iso).toLocaleDateString("ko-KR");
+}
+
+// 상태
+async function loadStatus() {
+  S.status = await api("/api/status");
+  const st = S.status, t = st.today;
+  $("#chips").innerHTML = `
+    <span class="chip">오늘 게시 <b>${t.used}/${t.limit}</b></span>
+    <span class="chip ${st.keys.youtube?"":"bad"}">YouTube 키 ${st.keys.youtube?"✔":"없음"}</span>
+    <span class="chip ${st.keys.ai?"":"bad"}">AI(${esc(st.ai.provider)}) 키 ${st.keys.ai?"✔":"없음"}</span>`;
+  $("#modelInfo").textContent = st.ai.writer_model;
+  if (!$("#q").value) $("#q").value = st.search_query;
+  $("#today").innerHTML = `<div style="flex:1">오늘 <b>${t.used}</b> / ${t.limit}개 게시 · 남은 ${t.remaining}개
+     <div class="meter"><i style="width:${Math.min(100, t.used/t.limit*100)}%"></i></div></div>`;
+  renderProfiles(); renderSetup(); renderPostState(); renderGuide();
+}
+
+function renderSetup() {
+  const st = S.status, items = [];
+  if (!st.keys.youtube) items.push(`<li><code>.env</code>에 <code>YOUTUBE_API_KEY=...</code>를 넣고 다시 실행하세요.</li>`);
+  if (!st.keys.ai) items.push(`<li><code>.env</code>에 <code>${st.ai.provider==="gemini"?"GEMINI_API_KEY":"ANTHROPIC_API_KEY"}=...</code>를 넣고 다시 실행하세요.</li>`);
+  if (!st.profiles.some(p => p.exists)) items.push(`<li>크롬 프로필이 없습니다. 터미널에서 <code>python -m scripts.login_profile 유튜브1</code>로 로그인해 주세요.</li>`);
+  $("#setup").innerHTML = items.length ? `<h3>처음 설정이 필요합니다</h3><ul style="margin:0;padding-left:18px">${items.join("")}</ul>` : "";
+  $("#setup").classList.toggle("hide", !items.length);
+}
+
+function renderProfiles() {
+  const keep = $("#profile").value || "auto";
+  const ps = S.status.profiles;
+  const label = p => {
+    if (!p.exists) return `${p.name} — 아직 만들지 않음`;
+    if (p.busy) return `${p.name} — 게시 중`;
+    if (p.login && !p.login.ok) return `${p.name} — ${p.login.message}`;
+    return `${p.name}${p.login?.ok ? " — 로그인됨" : ""}`;
+  };
+  $("#profile").innerHTML = `<option value="auto">자동 배정 (오늘 가장 적게 쓴 계정)</option>` +
+    ps.map(p => `<option value="${esc(p.name)}" ${(!p.exists||p.busy)?"disabled":""}>${esc(label(p))}</option>`).join("");
+  $("#profile").value = [...$("#profile").options].some(o => o.value===keep && !o.disabled) ? keep : "auto";
+}
+
+function renderGuide() {
+  let g;
+  if (S.posting) g = "크롬 창에서 댓글이 입력되는 중입니다. 오른쪽에서 진행 상태를 확인하세요.";
+  else if (!S.videos.length && !S.sel) g = "① [영상 불러오기]를 누르거나 유튜브 링크를 붙여 넣으세요.";
+  else if (!S.sel) g = "① 목록에서 댓글을 달 영상을 하나 고르세요.";
+  else if (S.drafting) g = "② AI가 영상을 분석하고 초안을 쓰는 중입니다.";
+  else if (S.lastOutcome?.ok && S.lastOutcome.video_id === S.sel.id) g = "게시 완료! [댓글 보기]로 확인하거나 ①에서 다음 영상을 고르세요.";
+  else if (S.sel.commented) g = "이 영상에는 이미 댓글을 달았습니다. 다른 영상을 고르세요 (영상당 1개).";
+  else if (S.draft && S.checks.length) g = "② 초안의 빨간 항목을 고치거나 [다시 생성]을 누르세요.";
+  else if (S.draft) g = "③ 계정을 고르고 [댓글 달기]를 누르세요.";
+  else g = "② 초안을 만드는 중입니다.";
+  $("#guideText").textContent = g;
+  $("#col2").classList.toggle("dim", !S.sel);
+  $("#col3").classList.toggle("dim", !S.draft);
+}
+
+// ① 목록
+async function loadVideos(mode) {
+  const btn = mode === "rising" ? $("#btnRising") : $("#btnLatest");
+  const old = btn.textContent;
+  btn.disabled = true; btn.innerHTML = `<span class="spinner"></span>불러오는 중`;
+  $("#listErr").innerHTML = "";
+  try {
+    const r = await api(`/api/videos?mode=${mode}&q=${encodeURIComponent($("#q").value.trim())}`);
+    S.videos = r.videos;
+    $("#listInfo").textContent = `${mode==="rising"?"뜨기 직전":"최신"} ${r.videos.length}개`;
+    renderList(mode === "rising" && !r.videos.length
+      ? "조건(조회수 1,000~5,000 · 시간당 150회 이상)에 맞는 영상이 지금은 없습니다." : null);
+  } catch (e) { $("#listErr").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+  finally { btn.disabled = false; btn.textContent = old; renderGuide(); }
+}
+
+async function addLink() {
+  const url = $("#link").value.trim();
+  if (!url) return;
+  $("#listErr").innerHTML = "";
+  try {
+    const r = await api("/api/videos/resolve", {method:"POST", body:{url}});
+    S.videos = [r.video, ...S.videos.filter(v => v.id !== r.video.id)];
+    $("#link").value = "";
+    renderList(); select(r.video.id);
+  } catch (e) { $("#listErr").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+}
+
+function renderList(emptyMsg) {
+  if (!S.videos.length) { $("#list").innerHTML = `<div class="empty">${esc(emptyMsg || "영상이 없습니다.")}</div>`; return; }
+  $("#list").innerHTML = S.videos.map(v => `
+    <button class="card ${S.sel?.id===v.id?"sel":""}" data-id="${esc(v.id)}">
+      <img src="${esc(v.thumbnail)}" alt="" loading="lazy">
+      <div style="min-width:0">
+        <div class="t">${esc(v.title)}</div>
+        <div class="m">${esc(v.channel)} · ${ago(v.published_at)} · 조회 ${num(v.views)}</div>
+        <div class="badges">
+          ${v.commented?`<span class="b done">댓글 완료</span>`:""}
+          ${v.rising?`<span class="b rise">뜨기 직전 · 시간당 ${num(Math.round(v.views_per_hour))}회</span>`:""}
+          ${v.drafted&&!v.commented?`<span class="b draft">초안 있음</span>`:""}
+        </div>
+      </div>
+    </button>`).join("");
+}
+
+$("#list").addEventListener("click", e => { const c = e.target.closest(".card"); if (c) select(c.dataset.id); });
+
+// ② 초안
+async function select(id, regenerate=false) {
+  if (S.posting) return;
+  S.sel = S.videos.find(v => v.id === id) || S.sel;
+  S.draft = null; S.checks = []; S.lastOutcome = null; S.drafting = true;
+  renderList(); resetSteps(); $("#result").innerHTML = ""; renderGuide(); renderPostState();
+  const v = S.sel;
+  $("#draftBox").innerHTML = `${vhead(v)}<div class="empty"><span class="spinner"></span>
+     자막과 인기 댓글을 읽고 영상 속 고민을 정리하는 중입니다…<br><small>(10~40초)</small></div>`;
+  try {
+    const d = await api("/api/draft", {method:"POST", body:{video_id:id, regenerate}});
+    if (S.sel?.id !== id) return;
+    S.draft = d; S.checks = d.checks || [];
+    v.drafted = true; renderList();
+    renderDraft();
+  } catch (e) {
+    $("#draftBox").innerHTML = `${vhead(v)}<div class="err">${esc(e.message)}</div>
+      <button class="btn" style="margin-top:10px" onclick="select('${esc(id)}', true)">다시 시도</button>`;
+  } finally { S.drafting = false; renderGuide(); renderPostState(); }
+}
+
+function vhead(v) {
+  return `<div class="vhead"><img src="${esc(v.thumbnail)}" alt="">
+    <div><div class="t">${esc(v.title)}</div>
+    <div class="m" style="color:var(--sub);font-size:12px">${esc(v.channel)} · <a href="${esc(v.url)}" target="_blank" rel="noopener">유튜브에서 보기 ↗</a></div></div></div>`;
+}
+
+function hl(quote, kw) {
+  const q = esc(quote), k = esc(kw);
+  return k && q.includes(k) ? q.replace(k, `<mark>${k}</mark>`) : q;
+}
+
+function tsec(t) { const m = /^(\d+):(\d{2})$/.exec(t||""); return m ? (+m[1])*60 + (+m[2]) : null; }
+
+function renderDraft() {
+  const d = S.draft, v = S.sel;
+  const srcLabel = {transcript:"자막 기반", video:"영상 직접 분석", metadata:"제목·설명 기반"}[d.source] || d.source;
+  $("#draftBox").innerHTML = `
+    ${vhead(v)}
+    <label class="l" style="margin-top:0">영상 속 고민</label>
+    <div class="concern">${esc(d.concern)}</div>
+    <span class="src">${esc(srcLabel)} · ${esc(d.source_note)}${d.cached?" · 저장된 초안":""}</span>
+    <label class="l">AI가 짚은 영상 속 장면·말</label>
+    <ul class="ev">${d.evidence.map(e => {
+        const s = tsec(e.time);
+        const tm = s!==null ? `<a class="tm" href="${esc(v.url)}&t=${s}s" target="_blank" rel="noopener">${esc(e.time)}</a>`
+                            : `<span class="tm">—</span>`;
+        return `<li>${tm}<span>${hl(e.quote, e.keyword)}</span></li>`; }).join("")}</ul>
+    ${d.viewer_mood?`<label class="l">시청자 반응</label><div style="font-size:13px">${esc(d.viewer_mood)}</div>`:""}
+    <label class="l" for="draft">댓글 초안 <span style="font-weight:400">(직접 고쳐도 됩니다)</span></label>
+    <textarea id="draft">${esc(d.comment)}</textarea>
+    <div class="counter"><span id="cnt"></span><button class="linkbtn" id="btnRegen">↻ 다시 생성</button></div>
+    <ul class="checks" id="checks"></ul>
+    <div class="checkmsg" id="checkmsg"></div>
+    ${d.history?.length?`<details><summary>AI가 스스로 다시 쓴 기록 ${d.history.length}건</summary><ul>${
+      d.history.map(h => `<li>“${esc(h.comment)}”<br>→ ${esc(h.problems.join(" / "))}</li>`).join("")}</ul></details>`:""}
+  `;
+  $("#draft").addEventListener("input", onDraftInput);
+  $("#btnRegen").addEventListener("click", () => select(v.id, true));
+  renderChecks();
+}
+
+let pcTimer;
+function onDraftInput() {
+  renderCount();
+  clearTimeout(pcTimer);
+  pcTimer = setTimeout(async () => {
+    try {
+      const r = await api(`/api/precheck?video_id=${encodeURIComponent(S.sel.id)}`, {method:"POST", body:{text:$("#draft").value}});
+      S.checks = r.checks; renderChecks(); renderPostState(); renderGuide();
+    } catch (e) {}
+  }, 300);
+}
+
+function renderCount() {
+  const st = S.status.comment, n = $("#draft").value.trim().replace(/\s+/g," ").length;
+  const bad = n < st.min || n > st.max;
+  $("#cnt").innerHTML = `<span class="${bad?"over":""}">${n}자</span> / ${st.min}~${st.max}자`;
+}
+
+function renderChecks() {
+  renderCount();
+  const bad = new Set(S.checks.map(c => c.code === "INVALID_COMMENT" ? null : c.code));
+  const active = CHECKS.filter(([code]) => !(code === "NO_DISCLOSURE" && !S.status.comment.disclosure));
+  $("#checks").innerHTML = active.map(([code, name]) =>
+    `<li class="${bad.has(code)?"no":"ok"}">${bad.has(code)?"✘":"✔"} ${name}</li>`).join("");
+  $("#checkmsg").innerHTML = S.checks.map(c => `· ${esc(c.message)}`).join("<br>");
+}
+
+// ③ 게시
+function resetSteps() {
+  $("#steps").innerHTML = STEP_ORDER.map(([k, l]) =>
+    `<li data-k="${k}"><span class="dot"></span><span class="lb">${l}</span></li>${k==="typing"?`<div class="bar hide" id="typeBar"><i></i></div>`:""}`).join("");
+}
+
+function setStep(stage, extra={}) {
+  const idx = STEP_ORDER.findIndex(([k]) => k === stage);
+  document.querySelectorAll("#steps li").forEach((li, i) => {
+    li.classList.remove("now","done","fail");
+    if (stage === "failed") {
+      const at = STEP_ORDER.findIndex(([k]) => k === extra.at_stage);
+      if (i < at) li.classList.add("done"); else if (i === at) li.classList.add("fail");
+      return;
+    }
+    if (i < idx || stage === "done") li.classList.add("done");
+    else if (i === idx) li.classList.add("now");
+  });
+  if (stage === "typing" && extra.total) {
+    $("#typeBar").classList.remove("hide");
+    $("#typeBar i").style.width = `${(extra.typed||0)/extra.total*100}%`;
+    document.querySelector('#steps li[data-k="typing"] .lb').textContent = `한 글자씩 입력 중 (${extra.typed||0}/${extra.total}자)`;
+  }
+}
+
+function renderPostState() {
+  const why = [];
+  const st = S.status;
+  if (!S.sel) why.push("① 영상을 먼저 고르세요.");
+  else if (S.sel.commented) why.push("이 영상에는 이미 댓글을 달았습니다 (영상당 1개).");
+  else if (!S.draft) why.push(S.drafting ? "초안을 만드는 중입니다." : "② 초안이 필요합니다.");
+  else if (S.checks.length) why.push("초안의 빨간 항목을 먼저 고쳐 주세요.");
+  if (st && st.today.remaining <= 0) why.push(`오늘 게시 상한(${st.today.limit}개)에 도달했습니다.`);
+  if (st && !st.profiles.some(p => p.exists)) why.push("사용할 크롬 프로필이 없습니다.");
+  if (S.lastOutcome?.ok && S.lastOutcome.video_id === S.sel?.id) why.splice(0, why.length, "이 영상에 게시를 마쳤습니다.");
+  $("#btnPost").disabled = S.posting || why.length > 0;
+  $("#btnPost").textContent = S.posting ? "게시 중…" : "댓글 달기";
+  $("#why").textContent = S.posting ? "" : why.join(" ");
+}
+
+async function post() {
+  const text = $("#draft").value.trim();
+  S.posting = true; S.lastOutcome = null; renderPostState(); renderGuide();
+  resetSteps(); $("#result").innerHTML = "";
+  $("#draft").readOnly = true;
+  try {
+    const {job_id} = await api("/api/post", {method:"POST",
+      body:{video_id:S.sel.id, text, profile:$("#profile").value, title:S.sel.title, channel:S.sel.channel}});
+    await new Promise(resolve => {
+      const es = new EventSource(`/api/jobs/${job_id}/events`);
+      es.onmessage = ev => { const d = JSON.parse(ev.data); if (d.stage !== "blocked") setStep(d.stage, d); };
+      es.addEventListener("end", ev => { es.close(); showOutcome(JSON.parse(ev.data)); resolve(); });
+      es.onerror = () => { es.close(); pollJob(job_id).then(resolve); };
+    });
+  } catch (e) {
+    $("#result").innerHTML = `<div class="result no">${esc(e.message)}</div>`;
+  } finally {
+    S.posting = false; $("#draft") && ($("#draft").readOnly = false);
+    await loadStatus(); renderPostState(); renderGuide();
+  }
+}
+
+async function pollJob(id) {
+  for (;;) {
+    const j = await api(`/api/jobs/${id}`);
+    if (j.events.length) { const last = j.events[j.events.length-1]; setStep(last.stage, last); }
+    if (j.done) { showOutcome(j.outcome || {}); return; }
+    await new Promise(r => setTimeout(r, 700));
+  }
+}
+
+function showOutcome(o) {
+  S.lastOutcome = o;
+  if (o.status === "success") {
+    setStep("done");
+    S.sel.commented = true; renderList();
+    $("#result").innerHTML = `<div class="result ok"><b>게시 완료</b> · ${esc(o.profile)}
+      ${o.comment_url?`<br><a href="${esc(o.comment_url)}" target="_blank" rel="noopener">댓글 보기 ↗</a>`:""}</div>`;
+  } else if (o.status === "blocked") {
+    resetSteps();
+    $("#result").innerHTML = `<div class="result blk"><b>규칙에 의해 차단</b><br>${esc(o.message)}</div>`;
+    if (o.code === "DUPLICATE_VIDEO") { S.sel.commented = true; renderList(); }
+  } else {
+    const shot = o.screenshot ? `/shots/${o.screenshot.split(/[\\/]/).pop()}` : null;
+    $("#result").innerHTML = `<div class="result no"><b>실패</b> · ${esc(o.message || o.code)}
+      ${shot?`<a href="${shot}" target="_blank"><img src="${shot}" alt="실패 화면 캡처"></a>`:""}</div>`;
+  }
+}
+
+$("#btnPost").addEventListener("click", post);
+$("#btnLatest").addEventListener("click", () => loadVideos("latest"));
+$("#btnRising").addEventListener("click", () => loadVideos("rising"));
+$("#btnLink").addEventListener("click", addLink);
+$("#link").addEventListener("keydown", e => { if (e.key === "Enter") addLink(); });
+$("#q").addEventListener("keydown", e => { if (e.key === "Enter") loadVideos("latest"); });
+$("#btnLogin").addEventListener("click", async () => {
+  const b = $("#btnLogin"); b.disabled = true; b.innerHTML = `<span class="spinner"></span>크롬을 열어 확인하는 중…`;
+  try { await api("/api/profiles/check", {method:"POST"}); await loadStatus(); }
+  catch (e) { alert(e.message); }
+  finally { b.disabled = false; b.textContent = "로그인 상태 확인"; }
+});
+
+// 기록 탭
+document.querySelectorAll("nav button").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll("nav button").forEach(x => x.classList.toggle("on", x === b));
+  const log = b.dataset.tab === "log";
+  $("#dash").classList.toggle("hide", log); $("#logView").classList.toggle("hide", !log);
+  if (log) loadLog();
+}));
+
+async function loadLog() {
+  const {rows} = await api("/api/log?limit=200");
+  await loadStatus();
+  const t = S.status.today;
+  $("#logSum").innerHTML = `오늘(${esc(t.day)}) 게시 <b>${t.used}/${t.limit}</b> · 성공 <b>${t.success}</b> · 실패 <b>${t.failed}</b> · 규칙 차단 <b>${t.blocked}</b>
+    &nbsp;—&nbsp;영상당 1개 · 하루 ${t.limit}개 규칙은 DB에서 강제됩니다. 최신순.`;
+  const NAME = {success:"✔ 성공", failed:"✘ 실패", blocked:"⛔ 차단", in_progress:"… 진행 중"};
+  $("#logBody").innerHTML = rows.length ? rows.map(r => `
+    <tr>
+      <td style="white-space:nowrap">${esc(r.created_at.slice(5,16).replace("T"," "))}</td>
+      <td class="st ${r.status}">${NAME[r.status]||r.status}</td>
+      <td>${esc(r.profile||"-")}</td>
+      <td><a href="https://www.youtube.com/watch?v=${esc(r.video_id)}" target="_blank" rel="noopener">${esc(r.video_title||r.video_id)}</a></td>
+      <td class="c">${esc(r.text)}</td>
+      <td class="links">${r.comment_url?`<a href="${esc(r.comment_url)}" target="_blank" rel="noopener">댓글 보기 ↗</a>`:""}
+          ${r.screenshot_url?`<a href="${r.screenshot_url}" target="_blank">화면 캡처</a>`:""}
+          ${r.error?`<div style="color:var(--sub);font-size:12px">${esc(r.error)}</div>`:""}</td>
+    </tr>`).join("") : `<tr><td colspan="6" class="empty">아직 기록이 없습니다.</td></tr>`;
+}
+
+resetSteps();
+loadStatus();
+</script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+playwright>=1.45
+pyyaml>=6.0
+tzdata>=2024.1   # Windows에는 시간대 데이터가 기본으로 없음
+fastapi>=0.110
+uvicorn>=0.29
+httpx>=0.27
+python-dotenv>=1.0
+google-genai>=1.0
+youtube-transcript-api>=1.0
+pytest>=8.0
+# 선택: ai.provider를 anthropic으로 쓸 때
+# anthropic>=0.40

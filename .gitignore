@@ -1,0 +1,15 @@
+# 비밀 값
+.env
+
+# 크롬 프로필(로그인 쿠키가 들어 있으므로 절대 커밋 금지)
+profiles/*
+!profiles/.gitkeep
+
+# 실행 결과
+data/*.db*
+data/screenshots/*
+!data/screenshots/.gitkeep
+
+__pycache__/
+.pytest_cache/
+.venv*/
